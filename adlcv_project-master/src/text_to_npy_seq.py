@@ -1,0 +1,61 @@
+import numpy as np
+import json
+from pathlib import Path
+
+def load_tile_mapping(json_path):
+    with open(json_path, 'r') as f:
+        data = json.load(f)
+    chars = sorted(data['tiles'].keys())
+    char_to_idx = {char: i for i, char in enumerate(chars)}
+    return char_to_idx, len(chars)
+
+def one_hot_encode_tile_grid(tile_grid, char_to_idx, num_classes):
+    h, w = tile_grid.shape
+    one_hot = np.zeros((h, w, num_classes), dtype=np.float32)
+    for y in range(h):
+        for x in range(w):
+            char = tile_grid[y, x]
+            if char in char_to_idx:
+                idx = char_to_idx[char]
+                one_hot[y, x, idx] = 1.0
+            else:
+                print(f"[Warning] Unknown character '{char}' at ({y}, {x}) — skipped.")
+    return one_hot
+
+def process_scenario_folder(scenario_dir, char_to_idx, num_classes, output_dir):
+    patches = sorted(Path(scenario_dir).glob("*.txt"))
+    encoded_patches = []
+
+    for patch_file in patches:
+        with open(patch_file, 'r') as f:
+            lines = f.readlines()
+        grid = np.array([list(line.strip()) for line in lines if line.strip()])
+
+        if grid.shape != (14, 14):
+            print(f"[Skip] {patch_file.name} has incorrect shape {grid.shape}")
+            continue
+
+        encoded = one_hot_encode_tile_grid(grid, char_to_idx, num_classes)
+        encoded_patches.append(encoded)
+
+    if encoded_patches:
+        stacked = np.stack(encoded_patches)  # [N,14,14,num_classes]
+        scenario_name = Path(scenario_dir).name
+        np.save(output_dir / f"{scenario_name}.npy", stacked)
+        print(f"Saved {scenario_name}.npy with shape {stacked.shape}")
+
+def main():
+    base_dir = Path("../data/processed_text/stride_224_text")
+    output_dir = Path("../data/processed_text/stride_224_text/scenarios_npy")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    json_mapping = Path("task_2/smb.json")
+    char_to_idx, num_classes = load_tile_mapping(json_mapping)
+
+    scenario_dirs = [d for d in base_dir.iterdir() if d.is_dir()]
+
+    for scenario_dir in scenario_dirs:
+        process_scenario_folder(scenario_dir, char_to_idx, num_classes, output_dir)
+
+if __name__ == "__main__":
+    main()
