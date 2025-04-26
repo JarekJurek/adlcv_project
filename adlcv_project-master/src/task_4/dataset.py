@@ -60,8 +60,8 @@ class MarioSequentialDataset(Dataset):
 #           TEST            #
 # -------------------------- #
 if __name__ == "__main__":
-    project_root = Path(__file__).resolve().parents[3]
-    dataset_dir = project_root / "data" / "processed_text" / "scenarios_npy"
+    project_root = Path(__file__).resolve().parents[2]
+    dataset_dir = project_root / "data" / "processed_text" / "stride_224_text" / "scenarios_npy"
     dataset = MarioSequentialDataset(npy_dir=dataset_dir)
     loader = torch.utils.data.DataLoader(dataset, batch_size=2, shuffle=True)
 
