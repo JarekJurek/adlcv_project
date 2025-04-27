@@ -37,8 +37,12 @@ def create_ascii_to_tile_mapping():
     }
     return mapping
 
-def render_level(ascii_level, mapping, tileset, tile_size=16):
+def render_level(ascii_level, tile_size=16):
     """Render the level using the tileset."""
+    tiles_path = Path(__file__).resolve().parents[0] / 'tiles.png'
+    tileset = load_tileset(tiles_path)
+    mapping = create_ascii_to_tile_mapping()
+
     height = len(ascii_level)
     width = max(len(line) for line in ascii_level)
     
@@ -64,26 +68,11 @@ def render_level(ascii_level, mapping, tileset, tile_size=16):
     return level_image
 
 def main():
-    # File paths
-    # base_dir = Path(__name__).resolve().parents[2]
-    # input_dir = base_dir / 'src/task_4/decoded_ascii_levels'
-    # output_dir = base_dir / 'src/task_4/real_images'
-    # json_path = base_dir / 'src/decoder/smb.json'
-    # tileset_path = base_dir / 'src/decoder/tiles.png'
-
     level_path = '/zhome/a2/c/213547/DLCV/adlcv_project/adlcv_project-master/src/task_4/decoded_ascii_levels/generated_frame_1.txt'
-    json_path = 'smb.json'
-    tileset_path = 'tiles.png'
     output_path = 'rendered_level.png'
     
-    # Load resources
     ascii_level = load_level(level_path)
-    smb_json = load_tile_mappings(json_path)  # Still loading for potential other uses
-    tileset = load_tileset(tileset_path)
-    
-    # Create mapping and render
-    mapping = create_ascii_to_tile_mapping()
-    rendered_level = render_level(ascii_level, mapping, tileset)
+    rendered_level = render_level(ascii_level)
     
     # Save the result
     rendered_level.save(output_path)
