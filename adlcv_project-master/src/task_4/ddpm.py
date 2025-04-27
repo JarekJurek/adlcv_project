@@ -3,9 +3,8 @@ from tqdm import tqdm
 import logging
 logging.basicConfig(format="%(asctime)s - %(levelname)s: %(message)s", level=logging.INFO, datefmt="%I:%M:%S")
 
-
 class Diffusion:
-    def __init__(self, T=500, beta_start=1e-4, beta_end=0.02, img_size=14, device="cuda"):
+    def __init__(self, T=500, beta_start=1e-4, beta_end=0.02, img_size=16, device="cuda"):
         """
         T : total diffusion steps (X_T is pure noise N(0,1))
         beta_start: value of beta for t=0
@@ -24,7 +23,7 @@ class Diffusion:
         self.alphas = 1. - self.betas
         self.alphas_bar = torch.cumprod(self.alphas, dim=0) # cumulative products of alpha 
 
-
+    
     def get_betas(self, schedule='linear'):
         if schedule == 'linear':
             return torch.linspace(self.beta_start, self.beta_end, self.T).to(torch.float32)
@@ -40,8 +39,6 @@ class Diffusion:
         
         else:
             raise NotImplementedError('Schedule type not implemented!')
-
-    
 
     def q_sample(self, x, t):
         """
@@ -75,9 +72,7 @@ class Diffusion:
         # return ..., noise
         return x_noised, noise
 
-    
-
-    def p_mean_std(self, model, x_t, t):
+    def p_mean_std(self, model, x_t, condition, t):
         """
         Calculate mean and std of p(x_{t-1} | x_t) using the reverse process and model
         """
@@ -87,7 +82,8 @@ class Diffusion:
 
         # TASK 3 : Implement the revese process
         # predicted_noise = ... # HINT: use model to predict noise
-        predicted_noise = model(x_t, t)
+        model_input = torch.cat([x_t, condition], dim=1)  # [1, 26, 14, 14]
+        predicted_noise = model(model_input, t)
 
         # mean = ... # HINT: calculate the mean of the distribution p(x_{t-1} | x_t). See Eq. 11 in the ddpm paper at page 4
         mean = (x_t - predicted_noise * beta / torch.sqrt(1 - alpha_bar)) / torch.sqrt(alpha)
@@ -96,24 +92,22 @@ class Diffusion:
 
         return mean, std
 
-    def p_sample(self, model, x_t, t):
+    def p_sample(self, model, x_t, condition, t):
         """
         Sample from p(x{t-1} | x_t) using the reverse process and model
         """
         # TASK 3: implement the reverse process
-        mean, std = self.p_mean_std(model, x_t, t)
+        mean, std = self.p_mean_std(model, x_t, condition, t)
         
         # HINT: Having calculate the mean and std of p(x{x_t} | x_t), we sample noise from a normal distribution.
         # see line 3 of the Algorithm 2 (Sampling) at page 4 of the ddpm paper.
         # noise = ...
         noise = torch.randn_like(x_t) if t[0] > 1 else torch.zeros_like(x_t)
 
-
         # x_t_prev = ... # Calculate x_{t-1}, see line 4 of the Algorithm 2 (Sampling) at page 4 of the ddpm paper.
         x_t_prev = mean + std * noise
 
         return x_t_prev
-
 
     def p_sample_loop(self, model, batch_size, timesteps_to_save=None):
         """
@@ -124,7 +118,7 @@ class Diffusion:
         if timesteps_to_save is not None:
             intermediates = []
         with torch.no_grad():
-            x = torch.randn((batch_size, 13, self.img_size, self.img_size)).to(self.device)
+            x = torch.randn((batch_size, 3, self.img_size, self.img_size)).to(self.device)
             for i in tqdm(reversed(range(1, self.T)), position=0, total=self.T-1):
                 t = (torch.ones(batch_size) * i).long().to(self.device)
                 x = self.p_sample(model, x, t)
@@ -135,7 +129,7 @@ class Diffusion:
 
         model.train()
         x = (x.clamp(-1, 1) + 1) / 2
-        x = (x * 255).type(torch.uint8)
+        x = (x * 255).type(torch.uint8)  # here is the conversion to 0-255, not really needed in this task
 
         if timesteps_to_save is not None:
             intermediates.append(x)
@@ -143,6 +137,29 @@ class Diffusion:
         else :
             return x
 
+    def p_sample_loop_seq(self, model, initial_frame, steps=5):
+        """
+        Conditional sampling: generates 'steps' frames conditioned on the previous one.
+        """
+        model.eval()
+        generated_frames = []
+        current_frame = initial_frame.clone().to(self.device)  # [1, 13, 14, 14]
+
+        with torch.no_grad():
+            for _ in range(steps):
+                x_t = torch.randn_like(current_frame).to(self.device)  # Start from noise
+                for t_step in reversed(range(1, self.T)):
+                    t = torch.ones(1).long().to(self.device) * t_step
+                    model_input = torch.cat([x_t, current_frame], dim=1)  # [1, 26, 14, 14]
+                    x_t = self.p_sample(model, x_t, current_frame, t)
+
+                final_frame = x_t.squeeze(0).cpu().numpy()  # [13,14,14]
+                generated_frames.append(final_frame)
+
+                # Update condition for next iteration
+                current_frame = x_t.clone()
+
+        return generated_frames
 
     def sample_timesteps(self, batch_size):
         """

@@ -50,23 +50,16 @@ class MarioSequentialDataset(Dataset):
         current_frame = torch.from_numpy(current_frame).permute(2, 0, 1)  # [13,14,14]
         next_frame = torch.from_numpy(next_frame).permute(2, 0, 1)
 
-        # Hardcoded action: "right"
-        action = torch.tensor([0, 1, 0, 0], dtype=torch.float32)
-        action_map = action[:, None, None].repeat(1, 14, 14)
+        return next_frame, current_frame
 
-        return next_frame, current_frame, action_map
-
-# -------------------------- #
-#           TEST            #
-# -------------------------- #
 if __name__ == "__main__":
     project_root = Path(__file__).resolve().parents[2]
     dataset_dir = project_root / "data" / "processed_text" / "stride_224_text" / "scenarios_npy"
     dataset = MarioSequentialDataset(npy_dir=dataset_dir)
-    loader = torch.utils.data.DataLoader(dataset, batch_size=2, shuffle=True)
+    loader = torch.utils.data.DataLoader(dataset, batch_size=2, shuffle=False)
 
     for i, batch in enumerate(loader):
-        next_frame, current_frame, action_map = batch
-        print(f"Batch {i}: next_frame {next_frame.shape}, current_frame {current_frame.shape}, action_map {action_map.shape}")
+        next_frame, current_frame = batch
+        print(f"Batch {i}: next_frame {next_frame.shape}, current_frame {current_frame.shape}")
         if i == 1:
-            break
+            break # todo: check if this is really sequentional
