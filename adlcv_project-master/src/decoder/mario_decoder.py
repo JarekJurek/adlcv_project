@@ -1,6 +1,7 @@
 import json
 import numpy as np
 from PIL import Image
+from pathlib import Path
 
 def load_level(file_path):
     """Load the ASCII level from a file."""
@@ -29,7 +30,7 @@ def create_ascii_to_tile_mapping():
         '>': (16, 160),
         '[': (0, 176),
         ']': (16, 176),
-        'o': (348, 16),
+        'o': (384, 16),
         'B': (144, 0),
         'b': (144, 16),
         # 'X' is handled specially in the render function
@@ -64,7 +65,13 @@ def render_level(ascii_level, mapping, tileset, tile_size=16):
 
 def main():
     # File paths
-    level_path = 'mario-1-1.txt'
+    # base_dir = Path(__name__).resolve().parents[2]
+    # input_dir = base_dir / 'src/task_4/decoded_ascii_levels'
+    # output_dir = base_dir / 'src/task_4/real_images'
+    # json_path = base_dir / 'src/decoder/smb.json'
+    # tileset_path = base_dir / 'src/decoder/tiles.png'
+
+    level_path = '/zhome/a2/c/213547/DLCV/adlcv_project/adlcv_project-master/src/task_4/decoded_ascii_levels/generated_frame_1.txt'
     json_path = 'smb.json'
     tileset_path = 'tiles.png'
     output_path = 'rendered_level.png'
