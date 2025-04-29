@@ -1,7 +1,6 @@
 import json
 import numpy as np
 from PIL import Image
-from pathlib import Path
 
 def load_level(file_path):
     """Load the ASCII level from a file."""
@@ -30,19 +29,15 @@ def create_ascii_to_tile_mapping():
         '>': (16, 160),
         '[': (0, 176),
         ']': (16, 176),
-        'o': (384, 16),
+        'o': (348, 16),
         'B': (144, 0),
         'b': (144, 16),
         # 'X' is handled specially in the render function
     }
     return mapping
 
-def render_level(ascii_level, tile_size=16):
+def render_level(ascii_level, mapping, tileset, tile_size=16):
     """Render the level using the tileset."""
-    tiles_path = Path(__file__).resolve().parents[0] / 'tiles.png'
-    tileset = load_tileset(tiles_path)
-    mapping = create_ascii_to_tile_mapping()
-
     height = len(ascii_level)
     width = max(len(line) for line in ascii_level)
     
@@ -59,6 +54,18 @@ def render_level(ascii_level, tile_size=16):
                 tile_image = tileset.crop((tile_coords[0], tile_coords[1], 
                                           tile_coords[0] + tile_size, tile_coords[1] + tile_size))
                 level_image.paste(tile_image, (x * tile_size, y * tile_size))
+            elif char == 'E':
+                # Check the character below 'E'
+                below = ascii_level[y+1][x] if y+1 < height and x < len(ascii_level[y+1]) else None
+                if below == '-':
+                    tile_coords = (436, 130)
+                elif below in ('<', '>'):
+                    tile_coords = (452, 130)
+                else:
+                    tile_coords = mapping['E']
+                tile_image = tileset.crop((tile_coords[0], tile_coords[1], 
+                                          tile_coords[0] + tile_size, tile_coords[1] + tile_size))
+                level_image.paste(tile_image, (x * tile_size, y * tile_size))
             elif char in mapping:
                 tile_coords = mapping[char]
                 tile_image = tileset.crop((tile_coords[0], tile_coords[1], 
@@ -68,11 +75,20 @@ def render_level(ascii_level, tile_size=16):
     return level_image
 
 def main():
-    level_path = '/zhome/a2/c/213547/DLCV/adlcv_project/adlcv_project-master/src/task_4/decoded_ascii_levels/generated_frame_1.txt'
+    # File paths
+    level_path = 'mario-1-1.txt'
+    json_path = 'smb.json'
+    tileset_path = 'tiles.png'
     output_path = 'rendered_level.png'
     
+    # Load resources
     ascii_level = load_level(level_path)
-    rendered_level = render_level(ascii_level)
+    smb_json = load_tile_mappings(json_path)  # Still loading for potential other uses
+    tileset = load_tileset(tileset_path)
+    
+    # Create mapping and render
+    mapping = create_ascii_to_tile_mapping()
+    rendered_level = render_level(ascii_level, mapping, tileset)
     
     # Save the result
     rendered_level.save(output_path)
